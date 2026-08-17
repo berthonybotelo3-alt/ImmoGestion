@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="fr" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImmoGestion - Plateforme Immobilière</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- CSS Personnalisé -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Animations fluides pour les fenêtres modales et toasts */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .transition-all-custom {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- En-tête / Navigation -->
+    <header
+        class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+
+            <!-- Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="app.switchTab('client')">
+                <div
+                    class="w-10 h-10 rounded-2xl bg-brand-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+                <span class="text-xl font-black tracking-tight">Immo<span class="text-brand-600">Gestion</span></span>
+            </div>
+
+            <!-- Onglets de Navigation -->
+            <nav class="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
+                <button id="nav-client" onclick="app.switchTab('client')"
+                    class="nav-link px-5 py-2.5 rounded-xl font-bold text-xs transition-all bg-white shadow-md text-brand-600">
+                    <i class="fa-solid fa-house mr-2"></i> Explorer
+                </button>
+                <button id="nav-proprietaire" onclick="app.switchTab('proprietaire')"
+                    class="nav-link hidden px-5 py-2.5 rounded-xl font-bold text-xs transition-all text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-plus-circle mr-2"></i> Publier un bien
+                </button>
+                <button id="nav-admin" onclick="app.switchTab('admin')"
+                    class="nav-link hidden px-5 py-2.5 rounded-xl font-bold text-xs transition-all text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-user-shield mr-2"></i> Administration
+                </button>
+            </nav>
+
+            <!-- Actions utilisateur & Thème -->
+            <div class="flex items-center space-x-3">
+                <!-- Bouton Dark Mode -->
+                <button onclick="app.toggleDarkMode()"
+                    class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline"></i>
+                </button>
+
+                <!-- Section Non Connecté -->
+                <div id="auth-section" class="flex items-center space-x-2">
+                    <button onclick="app.openModal('modal-login')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                        Connexion
+                    </button>
+                    <button onclick="app.openModal('modal-register')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/20 transition-all">
+                        Inscription
+                    </button>
+                </div>
+
+                <!-- Section Connecté -->
+                <div id="user-section" class="hidden items-center space-x-3">
+                    <span id="user-name-display"
+                        class="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700"></span>
+                    <button onclick="app.logout()"
+                        class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900 transition-all">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- VUE CLIENT (Catalogue des biens) -->
+        <section id="view-client" class="view-panel space-y-8">
+            <!-- Barre de Recherche et Filtres -->
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-96">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-keyword" placeholder="Rechercher par titre ou ville..."
+                        class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border-none focus:ring-2 focus:ring-brand-600 text-sm outline-none">
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Type :</label>
+                    <select id="filter-type"
+                        class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-2xl text-sm font-semibold outline-none border-none focus:ring-2 focus:ring-brand-600 w-full md:w-auto">
+                        <option value="Tous">Tous les types</option>
+                        <option value="Appartement">Appartement</option>
+                        <option value="Maison">Maison</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Studio">Studio</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Grille des Annonces -->
+            <div id="grid-properties" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Rempli dynamiquement via JS -->
+            </div>
+        </section>
+
+        <!-- VUE PROPRIETAIRE (Formulaire d'ajout) -->
+        <section id="view-proprietaire" class="view-panel hidden max-w-2xl mx-auto">
+            <div
+                class="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
+                <h2 class="text-2xl font-black mb-6">Publier un nouveau bien</h2>
+                <form id="form-publish" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Titre de l'annonce</label>
+                        <input type="text" id="pub-title" required
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Type de bien</label>
+                            <select id="pub-type"
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm">
+                                <option value="Appartement">Appartement</option>
+                                <option value="Maison">Maison</option>
+                                <option value="Villa">Villa</option>
+                                <option value="Studio">Studio</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Prix ($)</label>
+                            <input type="number" id="pub-price" required
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Adresse /
+                                Emplacement</label>
+                            <input type="text" id="pub-address" required
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Superficie (m²)</label>
+                            <input type="number" id="pub-area" required
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Description</label>
+                        <textarea id="pub-description" rows="4" placeholder="Décrivez votre bien..."
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-brand-600 text-sm"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Image Principale</label>
+                            <input type="file" id="pub-image" accept="image/*"
+                                class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-600 hover:file:bg-brand-100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Images Secondaires <span class="text-brand-600 font-black">(illimité)</span></label>
+                            <label id="secondary-images-label" class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl cursor-pointer hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/5 transition-all group">
+                                <i class="fa-solid fa-images text-xl text-slate-400 group-hover:text-brand-500 transition-colors mb-1"></i>
+                                <span class="text-xs text-slate-400 group-hover:text-brand-500 transition-colors">Cliquer pour ajouter des photos</span>
+                                <input type="file" id="pub-secondary-images" accept="image/*" multiple class="hidden">
+                            </label>
+                        </div>
+                    </div>
+                    <!-- Prévisualisation des images secondaires -->
+                    <div id="secondary-preview-container" class="hidden">
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Aperçu des images <span id="secondary-count" class="text-brand-600"></span></label>
+                        <div id="secondary-preview-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+                    </div>
+                    <button type="submit" id="btn-publish"
+                        class="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 shadow-lg shadow-brand-500/30 transition-all">
+                        Soumettre pour validation
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- VUE ADMIN (Gestion & Validation) -->
+        <section id="view-admin" class="view-panel hidden space-y-6">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div class="p-6 border-b border-slate-200 dark:border-slate-800">
+                    <h2 class="text-xl font-black">Modération des annonces</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-bold text-slate-400">
+                                <th class="p-4">Titre</th>
+                                <th class="p-4">Prix</th>
+                                <th class="p-4">Statut</th>
+                                <th class="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-admin-body" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                            <!-- Rempli dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL : DETAIL & DEMANDE DE RESERVATION -->
+    <div id="modal-demande" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-backdrop">
+        <div
+            class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+            <div class="relative group">
+                <img id="detail-img" onclick="app.openLightbox()" class="h-64 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity">
+                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                    <div class="bg-black/50 text-white p-3 rounded-full backdrop-blur-sm"><i class="fa-solid fa-expand text-xl"></i></div>
+                </div>
+                <button onclick="app.closeModal('modal-demande')"
+                    class="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-all z-10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <h2 id="detail-title" class="text-2xl font-black"></h2>
+                        <span id="detail-price" class="text-2xl font-black text-brand-600"></span>
+                    </div>
+                    <p id="detail-address" class="text-slate-400 text-sm mt-1"></p>
+                    <p id="detail-area" class="text-slate-500 font-semibold text-xs mt-1"></p>
+                    <p id="detail-description" class="text-slate-600 dark:text-slate-300 text-sm mt-4"></p>
+                    <div id="detail-secondary-images" class="flex overflow-x-auto gap-2 mt-4 pb-2"></div>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl space-y-1">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Contact Propriétaire</p>
+                    <p id="detail-owner-name" class="font-bold text-sm"></p>
+                    <p id="detail-owner-email" class="text-xs text-slate-400"></p>
+                </div>
+
+                <form id="form-demande" class="space-y-4">
+                    <input type="hidden" id="demande-bien-id">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Action</label>
+                            <select id="demande-action"
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-semibold outline-none">
+                                <option value="Location">Location</option>
+                                <option value="Achat">Achat</option>
+                                <option value="Visite">Visite</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-2">Période / Date</label>
+                            <input type="text" id="demande-date" placeholder="Ex: Du 10 au 20 Août" required
+                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Message</label>
+                        <textarea id="demande-message" rows="3" placeholder="Bonjour, je souhaite réserver..."
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm outline-none"></textarea>
+                    </div>
+                    <button type="submit" id="btn-demande"
+                        class="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-all">
+                        Envoyer la demande
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL : CONNEXION -->
+    <div id="modal-login" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-backdrop">
+        <div
+            class="bg-white dark:bg-slate-900 w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+            <button onclick="app.closeModal('modal-login')"
+                class="absolute top-6 right-6 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h2 class="text-2xl font-black mb-6">Connexion</h2>
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Nom d'utilisateur</label>
+                    <input type="text" id="login-username" required
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Mot de passe</label>
+                    <input type="password" id="login-password" required
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm">
+                </div>
+                <button type="submit" id="btn-login"
+                    class="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-all">
+                    Se connecter
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL : INSCRIPTION -->
+    <div id="modal-register" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-backdrop">
+        <div
+            class="bg-white dark:bg-slate-900 w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+            <button onclick="app.closeModal('modal-register')"
+                class="absolute top-6 right-6 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h2 class="text-2xl font-black mb-6">Créer un compte</h2>
+            <form id="form-register" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Nom d'utilisateur</label>
+                    <input type="text" id="reg-username" required
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Adresse Email</label>
+                    <input type="email" id="reg-email" required
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Mot de passe</label>
+                    <input type="password" id="reg-password" required
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider mb-2">Rôle</label>
+                    <select id="reg-role"
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none outline-none text-sm font-semibold">
+                        <option value="Client">Client / Locataire</option>
+                        <option value="Proprietaire">Propriétaire</option>
+                    </select>
+                </div>
+                <button type="submit" id="btn-register"
+                    class="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-all">
+                    S'inscrire
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL : LIGHTBOX PLEIN ECRAN -->
+    <div id="modal-lightbox" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-black/95 backdrop-blur-sm">
+        <button onclick="app.closeModal('modal-lightbox')" class="absolute top-6 right-6 text-white/70 hover:text-white transition-colors">
+            <i class="fa-solid fa-xmark text-3xl"></i>
+        </button>
+        <button onclick="app.prevLightboxImage()" class="absolute left-6 text-white/50 hover:text-white transition-colors">
+            <i class="fa-solid fa-chevron-left text-5xl"></i>
+        </button>
+        <img id="lightbox-img" class="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl transition-opacity duration-300">
+        <button onclick="app.nextLightboxImage()" class="absolute right-6 text-white/50 hover:text-white transition-colors">
+            <i class="fa-solid fa-chevron-right text-5xl"></i>
+        </button>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast"
+        class="fixed top-6 right-6 z-50 flex items-center space-x-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-5 py-4 rounded-2xl shadow-2xl transition-all duration-300 -translate-y-20 opacity-0 pointer-events-none">
+        <i class="fa-solid fa-circle-info text-brand-500"></i>
+        <span id="toast-message" class="text-sm font-bold"></span>
+    </div>
+
+    <!-- LOGIQUE JAVASCRIPT APP -->
+    <script>
+        class ImmoApp {
+            constructor() {
+                this.currentUser = null;
+                this.properties = [];
+                this.lightboxImages = [];
+                this.currentLightboxIndex = 0;
+                this.pendingSecondaryFiles = [];  // Stockage en mémoire des images secondaires
+                this.csrfToken = this.getCookie('csrftoken');
+                this.init();
+            }
+
+            async init() {
+                await this.checkAuth();
+                await this.loadProperties();
+                this.bindEvents();
+            }
+
+            getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            bindEvents() {
+                document.getElementById('search-keyword')?.addEventListener('input', () => this.renderProperties());
+                document.getElementById('filter-type')?.addEventListener('change', () => this.renderProperties());
+                document.getElementById('form-publish')?.addEventListener('submit', (e) => this.handlePublishProperty(e));
+                document.getElementById('form-demande')?.addEventListener('submit', (e) => this.handleSendRentalRequest(e));
+                document.getElementById('form-login')?.addEventListener('submit', (e) => this.login(e));
+                document.getElementById('form-register')?.addEventListener('submit', (e) => this.register(e));
+                document.getElementById('pub-secondary-images')?.addEventListener('change', (e) => this.handleSecondaryImagesChange(e));
+            }
+
+            handleSecondaryImagesChange(e) {
+                const newFiles = Array.from(e.target.files);
+                // Ajouter les nouveaux fichiers à la liste existante (accumulation)
+                newFiles.forEach(file => this.pendingSecondaryFiles.push(file));
+                // Réinitialiser l'input pour permettre de re-sélectionner les mêmes fichiers
+                e.target.value = '';
+                this.renderSecondaryPreviews();
+            }
+
+            renderSecondaryPreviews() {
+                const container = document.getElementById('secondary-preview-container');
+                const grid = document.getElementById('secondary-preview-grid');
+                const count = document.getElementById('secondary-count');
+                if (!container || !grid) return;
+
+                if (this.pendingSecondaryFiles.length === 0) {
+                    container.classList.add('hidden');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+                count.textContent = `(${this.pendingSecondaryFiles.length} photo${this.pendingSecondaryFiles.length > 1 ? 's' : ''})`;
+                grid.innerHTML = '';
+
+                this.pendingSecondaryFiles.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'relative group';
+                        wrapper.innerHTML = `
+                            <img src="${ev.target.result}" class="w-full h-20 object-cover rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                            <button type="button" onclick="app.removeSecondaryImage(${index})"
+                                class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        `;
+                        grid.appendChild(wrapper);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            removeSecondaryImage(index) {
+                this.pendingSecondaryFiles.splice(index, 1);
+                this.renderSecondaryPreviews();
+            }
+
+            async checkAuth() {
+                try {
+                    const res = await fetch('/api/auth/me/');
+                    if (res.ok) {
+                        this.currentUser = await res.json();
+                    } else {
+                        this.currentUser = null;
+                    }
+                    this.updateUI();
+                } catch (e) {
+                    console.error("Auth check failed", e);
+                }
+            }
+
+            updateUI() {
+                const authSection = document.getElementById('auth-section');
+                const userSection = document.getElementById('user-section');
+                const navProprio = document.getElementById('nav-proprietaire');
+                const navAdmin = document.getElementById('nav-admin');
+
+                if (this.currentUser) {
+                    authSection?.classList.add('hidden');
+                    userSection?.classList.remove('hidden');
+                    userSection?.classList.add('flex');
+
+                    const userNameDisplay = document.getElementById('user-name-display');
+                    if (userNameDisplay) {
+                        userNameDisplay.textContent = `${this.currentUser.username} (${this.currentUser.role})`;
+                    }
+
+                    if (this.currentUser.role === 'Proprietaire' || this.currentUser.role === 'Admin') {
+                        navProprio?.classList.remove('hidden');
+                    } else {
+                        navProprio?.classList.add('hidden');
+                    }
+
+                    if (this.currentUser.role === 'Admin') {
+                        navAdmin?.classList.remove('hidden');
+                    } else {
+                        navAdmin?.classList.add('hidden');
+                    }
+                } else {
+                    authSection?.classList.remove('hidden');
+                    userSection?.classList.add('hidden');
+                    userSection?.classList.remove('flex');
+                    navProprio?.classList.add('hidden');
+                    navAdmin?.classList.add('hidden');
+
+                    const currentView = document.querySelector('.view-panel:not(.hidden)');
+                    if (currentView && ['proprietaire', 'admin'].includes(currentView.id.replace('view-', ''))) {
+                        this.switchTab('client');
+                    }
+                }
+            }
+
+            async loadProperties() {
+                const grid = document.getElementById('grid-properties');
+                if (grid) {
+                    grid.innerHTML = Array(6).fill(`
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl h-80 animate-pulse border border-slate-200 dark:border-slate-800">
+                            <div class="h-52 bg-slate-200 dark:bg-slate-800 rounded-t-2xl"></div>
+                            <div class="p-6 space-y-4">
+                                <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                                <div class="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                try {
+                    const res = await fetch('/api/properties/');
+                    if (res.ok) {
+                        this.properties = await res.json();
+                        this.renderProperties();
+                        if (this.currentUser && this.currentUser.role === 'Admin') {
+                            this.renderAdminTable();
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            renderProperties() {
+                const keyword = document.getElementById('search-keyword')?.value.toLowerCase() || '';
+                const typeFilter = document.getElementById('filter-type')?.value || 'Tous';
+                const grid = document.getElementById('grid-properties');
+                if (!grid) return;
+
+                grid.innerHTML = '';
+
+                const filtered = this.properties.filter(p =>
+                    p.status === "Validé" &&
+                    (typeFilter === 'Tous' || p.property_type === typeFilter) &&
+                    p.title.toLowerCase().includes(keyword)
+                );
+
+                filtered.forEach(p => {
+                    let statusBadge = '';
+                    if (p.status === 'Validé') statusBadge = `<div class="absolute top-4 left-4 bg-emerald-500/90 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> Validé</div>`;
+                    else if (p.status === 'En attente') statusBadge = `<div class="absolute top-4 left-4 bg-amber-500/90 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5"><i class="fa-solid fa-clock"></i> En attente</div>`;
+                    else if (p.status === 'Rejeté') statusBadge = `<div class="absolute top-4 left-4 bg-red-500/90 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5"><i class="fa-solid fa-circle-xmark"></i> Rejeté</div>`;
+
+                    grid.innerHTML += `
+                        <div class="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer border border-slate-100 dark:border-slate-800" onclick="app.openDetailModal(${p.id})">
+                            <div class="relative overflow-hidden">
+                                <img src="${p.image ? p.image : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800'}" class="h-52 w-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                                ${statusBadge}
+                                <div class="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur text-brand-600 dark:text-brand-400 text-xs font-black px-3 py-1 rounded-full shadow-lg">
+                                    ${p.property_type}
+                                </div>
+                            </div>
+                            <div class="p-6 flex flex-col flex-1 relative bg-white dark:bg-slate-900 z-10">
+                                <h3 class="font-bold text-lg mb-2 line-clamp-1">${p.title}</h3>
+                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-4 flex items-center gap-1.5"><i class="fa-solid fa-location-dot"></i> <span class="truncate">${p.address}</span></p>
+                                <div class="mt-auto flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <span class="text-xl font-extrabold text-brand-600 dark:text-brand-400">$${p.price}</span>
+                                    <span class="px-4 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold text-xs group-hover:bg-brand-600 group-hover:text-white transition-colors">Détails</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            renderAdminTable() {
+                const tbody = document.getElementById('table-admin-body');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+                this.properties.forEach(p => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="p-4 font-bold">${p.title}</td>
+                            <td class="p-4 font-bold text-brand-600">$${p.price}</td>
+                            <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800">${p.status}</span></td>
+                            <td class="p-4 text-right">
+                                ${p.status !== "Validé" ? `<button onclick="app.updatePropertyStatus(${p.id}, 'Validé')" class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs mr-1">Valider</button>` : ''}
+                                ${p.status !== "Rejeté" ? `<button onclick="app.updatePropertyStatus(${p.id}, 'Rejeté')" class="px-3 py-1 bg-red-500 text-white rounded-lg text-xs">Rejeter</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            async updatePropertyStatus(id, status) {
+                try {
+                    const res = await fetch(`/api/properties/${id}/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify({ status })
+                    });
+                    if (res.ok) {
+                        this.showToast(`Statut mis à jour (${status})`);
+                        this.loadProperties();
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            async handlePublishProperty(e) {
+                e.preventDefault();
+                if (!this.currentUser) return this.showToast("Veuillez vous connecter.");
+
+                this.setButtonLoading('btn-publish', true);
+
+                const formData = new FormData();
+                formData.append('title', document.getElementById('pub-title').value);
+                formData.append('property_type', document.getElementById('pub-type').value);
+                formData.append('price', document.getElementById('pub-price').value);
+                formData.append('address', document.getElementById('pub-address').value);
+                formData.append('area', document.getElementById('pub-area').value);
+                formData.append('description', document.getElementById('pub-description').value);
+
+                const fileInput = document.getElementById('pub-image');
+                if (fileInput?.files[0]) {
+                    formData.append('image', fileInput.files[0]);
+                }
+
+                // Utilise le tableau en mémoire (accumulation de plusieurs sélections)
+                for (let i = 0; i < this.pendingSecondaryFiles.length; i++) {
+                    formData.append('secondary_images', this.pendingSecondaryFiles[i]);
+                }
+
+                try {
+                    const res = await fetch('/api/properties/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': this.csrfToken
+                            // NE PAS définir Content-Type : le navigateur gère multipart/form-data automatiquement
+                        },
+                        body: formData
+                    });
+                    if (res.ok) {
+                        this.showToast("✅ Bien publié ! En attente de validation par l'administrateur.");
+                        document.getElementById('form-publish').reset();
+                        this.pendingSecondaryFiles = [];  // Réinitialiser la liste après succès
+                        this.renderSecondaryPreviews();
+                        await this.loadProperties();
+                        this.switchTab('client');
+                    } else {
+                        const errorData = await res.json().catch(() => ({}));
+                        console.error("[Publication] Erreur serveur :", res.status, errorData);
+                        const detail = Object.values(errorData).flat().join(' ') || `Erreur HTTP ${res.status}`;
+                        this.showToast(`❌ Échec : ${detail}`);
+                    }
+                } catch (err) {
+                    console.error("[Publication] Erreur réseau :", err);
+                    this.showToast("❌ Erreur réseau. Vérifiez votre connexion.");
+                } finally {
+                    this.setButtonLoading('btn-publish', false, 'Soumettre pour validation');
+                }
+            }
+
+            setButtonLoading(buttonId, isLoading, originalText = '') {
+                const btn = document.getElementById(buttonId);
+                if (!btn) return;
+                if (isLoading) {
+                    btn.disabled = true;
+                    btn.dataset.original = btn.innerHTML;
+                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Chargement...`;
+                    btn.classList.add('opacity-70', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText || btn.dataset.original;
+                    btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                }
+            }
+
+            openLightbox() {
+                if (this.lightboxImages.length === 0) return;
+                const currentSrc = document.getElementById('detail-img').src;
+                this.currentLightboxIndex = this.lightboxImages.findIndex(src => src === currentSrc);
+                if (this.currentLightboxIndex === -1) this.currentLightboxIndex = 0;
+                this.updateLightboxImage();
+                this.openModal('modal-lightbox');
+            }
+
+            updateLightboxImage() {
+                const imgElement = document.getElementById('lightbox-img');
+                imgElement.style.opacity = '0';
+                setTimeout(() => {
+                    imgElement.src = this.lightboxImages[this.currentLightboxIndex];
+                    imgElement.style.opacity = '1';
+                }, 150);
+            }
+
+            prevLightboxImage() {
+                this.currentLightboxIndex = (this.currentLightboxIndex - 1 + this.lightboxImages.length) % this.lightboxImages.length;
+                this.updateLightboxImage();
+            }
+
+            nextLightboxImage() {
+                this.currentLightboxIndex = (this.currentLightboxIndex + 1) % this.lightboxImages.length;
+                this.updateLightboxImage();
+            }
+
+            openDetailModal(id) {
+                const p = this.properties.find(prop => prop.id === id);
+                if (!p) return;
+
+                document.getElementById('detail-img').src = p.image ? p.image : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800';
+                document.getElementById('detail-title').textContent = p.title;
+                document.getElementById('detail-address').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${p.address}`;
+                document.getElementById('detail-price').textContent = `$${p.price}`;
+                document.getElementById('detail-area').textContent = `Superficie: ${p.area} m²`;
+                document.getElementById('detail-description').textContent = p.description || "Aucune description fournie.";
+
+                const secondaryContainer = document.getElementById('detail-secondary-images');
+                secondaryContainer.innerHTML = '';
+                const mainImageSrc = p.image ? p.image : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800';
+
+                this.lightboxImages = [mainImageSrc];
+                if (p.images && p.images.length > 0) {
+                    p.images.forEach(img => this.lightboxImages.push(img.image));
+                }
+
+                if (p.images && p.images.length > 0) {
+                    // Ajouter l'image principale comme première miniature
+                    secondaryContainer.innerHTML += `<img src="${mainImageSrc}" class="h-16 w-24 flex-shrink-0 object-cover rounded-xl cursor-pointer hover:scale-105 hover:border-brand-500 hover:shadow-lg transition-all duration-300 transform border-2 border-transparent" onclick="document.getElementById('detail-img').src='${mainImageSrc}'">`;
+                    
+                    // Ajouter les images secondaires
+                    p.images.forEach(img => {
+                        secondaryContainer.innerHTML += `<img src="${img.image}" class="h-16 w-24 flex-shrink-0 object-cover rounded-xl cursor-pointer hover:scale-105 hover:border-brand-500 hover:shadow-lg transition-all duration-300 transform border-2 border-transparent" onclick="document.getElementById('detail-img').src='${img.image}'">`;
+                    });
+                }
+
+                document.getElementById('detail-owner-name').textContent = p.owner_username || "Propriétaire anonyme";
+                document.getElementById('detail-owner-email').textContent = p.owner_email || "Email non fourni";
+
+                document.getElementById('demande-bien-id').value = id;
+                this.openModal('modal-demande');
+            }
+
+            async handleSendRentalRequest(e) {
+                e.preventDefault();
+                if (!this.currentUser) {
+                    this.closeModal('modal-demande');
+                    this.openModal('modal-login');
+                    return this.showToast("Vous devez être connecté pour réserver.");
+                }
+
+                const payload = {
+                    property: document.getElementById('demande-bien-id').value,
+                    action_type: document.getElementById('demande-action').value,
+                    date_period: document.getElementById('demande-date').value,
+                    message: document.getElementById('demande-message').value
+                };
+
+                try {
+                    const res = await fetch('/api/reservations/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        this.showToast("Votre demande a bien été envoyée !");
+                        this.closeModal('modal-demande');
+                    } else {
+                        this.showToast("Erreur lors de l'envoi de la demande.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.showToast("Une erreur inattendue est survenue.");
+                } finally {
+                    this.setButtonLoading('btn-demande', false, 'Envoyer la demande');
+                }
+            }
+
+            async login(e) {
+                e.preventDefault();
+                this.setButtonLoading('btn-login', true);
+                const data = {
+                    username: document.getElementById('login-username').value,
+                    password: document.getElementById('login-password').value
+                };
+                try {
+                    const res = await fetch('/api/auth/login/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken },
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        await this.checkAuth();
+                        this.closeModal('modal-login');
+                        this.showToast("Connecté avec succès !");
+                        this.loadProperties();
+                    } else {
+                        this.showToast("Identifiants incorrects.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    this.showToast("Une erreur inattendue est survenue.");
+                } finally {
+                    this.setButtonLoading('btn-login', false, 'Se connecter');
+                }
+            }
+
+            async register(e) {
+                e.preventDefault();
+                this.setButtonLoading('btn-register', true);
+                const data = {
+                    username: document.getElementById('reg-username').value,
+                    email: document.getElementById('reg-email').value,
+                    password: document.getElementById('reg-password').value,
+                    role: document.getElementById('reg-role').value
+                };
+                try {
+                    const res = await fetch('/api/auth/register/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken },
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        await this.checkAuth();
+                        this.closeModal('modal-register');
+                        this.showToast("Inscription réussie !");
+                        this.loadProperties();
+                    } else {
+                        this.showToast("Erreur lors de l'inscription.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    this.showToast("Une erreur inattendue est survenue.");
+                } finally {
+                    this.setButtonLoading('btn-register', false, "S'inscrire");
+                }
+            }
+
+            async logout() {
+                try {
+                    await fetch('/api/auth/logout/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.csrfToken }
+                    });
+                    this.currentUser = null;
+                    this.updateUI();
+                    this.showToast("Déconnecté.");
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            switchTab(tabId) {
+                document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+                document.getElementById(`view-${tabId}`)?.classList.remove('hidden');
+
+                document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('bg-white', 'shadow-md', 'text-brand-600'));
+                document.getElementById(`nav-${tabId}`)?.classList.add('bg-white', 'shadow-md', 'text-brand-600');
+
+                if (tabId === 'admin') this.renderAdminTable();
+            }
+
+            openModal(id) {
+                document.getElementById(id)?.classList.remove('hidden');
+            }
+
+            closeModal(id) {
+                document.getElementById(id)?.classList.add('hidden');
+            }
+
+            toggleDarkMode() {
+                document.documentElement.classList.toggle('dark');
+            }
+
+            showToast(msg) {
+                const toast = document.getElementById('toast');
+                const toastMsg = document.getElementById('toast-message');
+                if (!toast || !toastMsg) return;
+
+                toastMsg.textContent = msg;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+            }
+        }
+
+        const app = new ImmoApp();
+    </script>
+</body>
+
+</html>
